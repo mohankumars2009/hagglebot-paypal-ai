@@ -1,0 +1,6 @@
+streamlit
+google-genai
+pydantic>=2
+requests
+httpx
+python-dotenv
