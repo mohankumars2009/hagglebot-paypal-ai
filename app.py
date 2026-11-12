@@ -58,6 +58,9 @@ PAYPAL_CLIENT_ID = get_secret("PAYPAL_CLIENT_ID")
 PAYPAL_CLIENT_SECRET = get_secret("PAYPAL_CLIENT_SECRET")
 GEMINI_API_KEY = get_secret("GEMINI_API_KEY")
 PAYPAL_BASE_URL = get_secret("PAYPAL_BASE_URL", "https://api-m.sandbox.paypal.com")
+# Public app root used by PayPal after approval/cancellation.
+# Local development defaults to the Streamlit port; set APP_BASE_URL when deployed.
+APP_BASE_URL = get_secret("APP_BASE_URL", "http://localhost:8501").rstrip("/")
 
 # Models are tried in order. Override with GEMINI_MODELS="modelA,modelB,modelC"
 MODEL_CHAIN = [
@@ -477,8 +480,8 @@ def create_paypal_order(p: Product, agreed_price: float, request_id: str) -> dic
         "application_context": {
             "brand_name": "HaggleBot AI Commerce",
             "user_action": "PAY_NOW",
-            "return_url": "https://example.com/success",
-            "cancel_url": "https://example.com/cancel",
+            "return_url": f"{APP_BASE_URL}/?paypal=return",
+            "cancel_url": f"{APP_BASE_URL}/?paypal=cancel",
         },
     }
     r = paypal_session().post(
@@ -661,6 +664,40 @@ if st.session_state.pending_deal and not st.session_state.active_order:
     if st.button("🔁 Retry PayPal checkout"):
         finalize_deal(st.session_state.pending_deal["price"])
         st.rerun()
+
+# ---------------- Handle PayPal browser redirects ----------------
+paypal_action = st.query_params.get("paypal")
+paypal_return_token = st.query_params.get("token")
+active_order_for_return = st.session_state.get("active_order")
+
+if paypal_action == "return":
+    if active_order_for_return and paypal_return_token == active_order_for_return.get("id"):
+        try:
+            returned_order = check_or_capture_order(active_order_for_return["id"])
+            active_order_for_return["status"] = returned_order.get("status", "UNKNOWN")
+            if active_order_for_return["status"] == "COMPLETED":
+                capture_id = capture_id_of(returned_order)
+                st.success(
+                    "PayPal payment completed successfully."
+                    + (f" Capture ID: `{capture_id}`" if capture_id else "")
+                )
+            else:
+                st.info(
+                    f"PayPal returned to HaggleBot. Current order status: "
+                    f"**{active_order_for_return['status']}**. If needed, use Verify & Capture below."
+                )
+        except Exception as e:
+            st.error(f"Could not verify the PayPal return: {e}")
+    else:
+        st.warning(
+            "PayPal returned to HaggleBot, but this browser session could not match the order. "
+            "Use the original app session to verify the order, or contact the merchant before retrying."
+        )
+    st.query_params.clear()
+
+elif paypal_action == "cancel":
+    st.warning("PayPal checkout was cancelled. No payment was captured by this return.")
+    st.query_params.clear()
 
 # ---------------- PayPal checkout card ----------------
 if st.session_state.active_order:
