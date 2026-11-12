@@ -1,5 +1,14 @@
+
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+
+# Virtual environments
 .venv/
 venv/
