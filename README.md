@@ -21,5 +21,5 @@ E-commerce suffers from nearly 70% cart abandonment, largely driven by price fri
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/YOUR_GITHUB_USERNAME/hagglebot-paypal-ai.git](https://github.com/YOUR_GITHUB_USERNAME/hagglebot-paypal-ai.git)
+   git clone https://github.com/mohankumars2009/hagglebot-paypal-ai.git
    cd hagglebot-paypal-ai
